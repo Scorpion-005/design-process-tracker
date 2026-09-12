@@ -2,7 +2,6 @@ workflows:
   android-workflow:
     name: Design Tracker Android Build
     max_build_duration: 30
-    instance_type: linux_x2
     environment:
       flutter: stable
     scripts:
@@ -11,8 +10,23 @@ workflows:
           flutter create . --platforms=android
       - name: Add Firebase Google Services plugin
         script: |
-          sed -i '/id("dev.flutter.flutter-plugin-loader") version "1.0.0"/a\    id("com.google.gms.google-services") version "4.4.2" apply false' android/settings.gradle.kts
-          sed -i '/id("dev.flutter.flutter-gradle-plugin")/a\    id("com.google.gms.google-services")' android/app/build.gradle.kts
+          python3 - << 'PYEOF'
+          settings = 'android/settings.gradle.kts'
+          content = open(settings).read()
+          content = content.replace(
+              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"',
+              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n    id("com.google.gms.google-services") version "4.4.2" apply false'
+          )
+          open(settings, 'w').write(content)
+
+          appgradle = 'android/app/build.gradle.kts'
+          content = open(appgradle).read()
+          content = content.replace(
+              'id("dev.flutter.flutter-gradle-plugin")',
+              'id("dev.flutter.flutter-gradle-plugin")\n    id("com.google.gms.google-services")'
+          )
+          open(appgradle, 'w').write(content)
+          PYEOF
       - name: Get dependencies
         script: |
           flutter pub get
