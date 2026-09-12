@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum DesignStage { received, cadApproved, strikeOff, rotaryScreen }
 
 extension DesignStageX on DesignStage {
@@ -16,7 +18,7 @@ extension DesignStageX on DesignStage {
 }
 
 class Design {
-  final int? id;
+  final String? id;
   final String? rpNo;
   final String? customerName;
   final String? buyerName;
@@ -47,7 +49,6 @@ class Design {
     return DesignStage.received;
   }
 
-  /// Days elapsed between received date and strike off date, if set.
   int? get daysToStrikeOff {
     if (strikeOffDate == null) return null;
     return strikeOffDate!.difference(receivedDate).inDays;
@@ -55,7 +56,6 @@ class Design {
 
   Map<String, dynamic> toMap() {
     return {
-      'id': id,
       'rpNo': rpNo,
       'customerName': customerName,
       'buyerName': buyerName,
@@ -68,9 +68,9 @@ class Design {
     };
   }
 
-  factory Design.fromMap(Map<String, dynamic> map) {
+  factory Design.fromMap(Map<String, dynamic> map, String id) {
     return Design(
-      id: map['id'] as int?,
+      id: id,
       rpNo: map['rpNo'] as String?,
       customerName: map['customerName'] as String?,
       buyerName: map['buyerName'] as String?,
@@ -87,6 +87,11 @@ class Design {
           ? DateTime.parse(map['rotaryScreenDate'] as String)
           : null,
     );
+  }
+
+  factory Design.fromSnapshot(DocumentSnapshot doc) {
+    final map = doc.data() as Map<String, dynamic>;
+    return Design.fromMap(map, doc.id);
   }
 
   Design copyWith({
