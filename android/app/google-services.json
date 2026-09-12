@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "944949878306",
+    "project_id": "design-tracker-01",
+    "storage_bucket": "design-tracker-01.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:944949878306:android:19cfd90cffc1b8569cf47b",
+        "android_client_info": {
+          "package_name": "com.example.design_process_tracker"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDZvB_3Ihs8bYl_5qP9Z_hmwJkq5JIQw9Q"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
