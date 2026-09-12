@@ -1,81 +1,46 @@
-import 'package:path/path.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/design.dart';
 
 class DatabaseService {
   DatabaseService._internal();
   static final DatabaseService instance = DatabaseService._internal();
 
-  Database? _db;
+  final CollectionReference _collection =
+      FirebaseFirestore.instance.collection('designs');
 
-  Future<Database> get database async {
-    if (_db != null) return _db!;
-    _db = await _initDb();
-    return _db!;
+  Future<String> insertDesign(Design design) async {
+    final docRef = await _collection.add(design.toMap());
+    return docRef.id;
   }
 
-  Future<Database> _initDb() async {
-    final dbPath = await getDatabasesPath();
-    final path = join(dbPath, 'design_tracker.db');
-    return openDatabase(
-      path,
-      version: 3,
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE designs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            rpNo TEXT,
-            customerName TEXT,
-            buyerName TEXT,
-            name TEXT NOT NULL,
-            remarks TEXT,
-            receivedDate TEXT NOT NULL,
-            cadApprovedDate TEXT,
-            strikeOffDate TEXT,
-            rotaryScreenDate TEXT
-          )
-        ''');
-      },
-      onUpgrade: (db, oldVersion, newVersion) async {
-        if (oldVersion < 2) {
-          await db.execute('ALTER TABLE designs ADD COLUMN rpNo TEXT');
-          await db.execute(
-              'ALTER TABLE designs ADD COLUMN customerName TEXT');
-        }
-        if (oldVersion < 3) {
-          await db.execute('ALTER TABLE designs ADD COLUMN buyerName TEXT');
-        }
-      },
-    );
+  Future<void> updateDesign(Design design) async {
+    if (design.id == null) return;
+    await _collection.doc(design.id).update(design.toMap());
   }
 
-  Future<int> insertDesign(Design design) async {
-    final db = await database;
-    return db.insert('designs', design.toMap()..remove('id'));
-  }
-
-  Future<int> updateDesign(Design design) async {
-    final db = await database;
-    return db.update('designs', design.toMap(),
-        where: 'id = ?', whereArgs: [design.id]);
-  }
-
-  Future<int> deleteDesign(int id) async {
-    final db = await database;
-    return db.delete('designs', where: 'id = ?', whereArgs: [id]);
+  Future<void> deleteDesign(String id) async {
+    await _collection.doc(id).delete();
   }
 
   Future<List<Design>> getAllDesigns() async {
-    final db = await database;
-    final rows = await db.query('designs', orderBy: 'receivedDate DESC');
-    return rows.map((r) => Design.fromMap(r)).toList();
+    final snapshot =
+        await _collection.orderBy('receivedDate', descending: true).get();
+    return snapshot.docs.map((doc) => Design.fromSnapshot(doc)).toList();
   }
 
-  Future<Design?> getDesign(int id) async {
-    final db = await database;
-    final rows = await db.query('designs', where: 'id = ?', whereArgs: [id]);
-    if (rows.isEmpty) return null;
-    return Design.fromMap(rows.first);
+  /// Real-time stream of all designs, ordered by received date descending.
+  Stream<List<Design>> watchAllDesigns() {
+    return _collection
+        .orderBy('receivedDate', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => Design.fromSnapshot(doc)).toList());
+  }
+
+  Future<Design?> getDesign(String id) async {
+    final doc = await _collection.doc(id).get();
+    if (!doc.exists) return null;
+    return Design.fromSnapshot(doc);
   }
 
   Future<List<Design>> getDesignsReceivedOn(DateTime day) =>
