@@ -10,43 +10,42 @@ import 'design_list_screen.dart';
 import 'analytics_screen.dart';
 import 'check_status_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Design>>(
+      stream: DatabaseService.instance.watchAllDesigns(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
+        }
+        final designs = snapshot.data ?? [];
+        return _HomeScreenBody(designs: designs);
+      },
+    );
+  }
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<Design> _designs = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final all = await DatabaseService.instance.getAllDesigns();
-    setState(() {
-      _designs = all;
-      _loading = false;
-    });
-  }
+class _HomeScreenBody extends StatelessWidget {
+  final List<Design> designs;
+  const _HomeScreenBody({required this.designs});
 
   @override
   Widget build(BuildContext context) {
     final today = DateTime.now();
-    final todayCount = _designs
+    final todayCount = designs
         .where((d) =>
             d.receivedDate.year == today.year &&
             d.receivedDate.month == today.month &&
             d.receivedDate.day == today.day)
         .length;
 
-    final weekCounts = WeekUtils.weeklyReceivedCounts(_designs, today);
+    final weekCounts = WeekUtils.weeklyReceivedCounts(designs, today);
     final currentWeek = WeekUtils.weekOfMonth(today);
 
     return Scaffold(
@@ -56,9 +55,9 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             tooltip: 'Export & Share (Excel)',
             icon: const Icon(Icons.ios_share),
-            onPressed: _designs.isEmpty
+            onPressed: designs.isEmpty
                 ? null
-                : () => ExportService.exportAndShare(_designs),
+                : () => ExportService.exportAndShare(designs),
           ),
           AnimatedBuilder(
             animation: themeService,
@@ -71,96 +70,86 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: _load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  _StatCard(
-                    title: "Today's Designs",
-                    value: '$todayCount',
-                    color: Colors.deepPurple,
-                    icon: Icons.today,
-                  ),
-                  const SizedBox(height: 14),
-                  Text('This Week (Week $currentWeek)',
-                      style: Theme.of(context)
-                          .textTheme
-                          .titleMedium
-                          ?.copyWith(fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [1, 2, 3, 4]
-                        .map((w) => Expanded(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 4),
-                                child: _WeekMiniCard(
-                                  week: w,
-                                  count: weekCounts[w] ?? 0,
-                                  highlight: w == currentWeek,
-                                ),
-                              ),
-                            ))
-                        .toList(),
-                  ),
-                  const SizedBox(height: 16),
-                  DesignHeatmap(designs: _designs),
-                  const SizedBox(height: 20),
-                  _MenuTile(
-                    icon: Icons.insights,
-                    title: 'Weekly Funnel & Analytics',
-                    subtitle:
-                        'Week-wise received vs approved vs strike off vs rotary',
-                    color: Colors.teal,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AnalyticsScreen(designs: _designs)),
-                      );
-                    },
-                  ),
-                  _MenuTile(
-                    icon: Icons.list_alt,
-                    title: 'All Designs',
-                    subtitle: 'View & update stage dates',
-                    color: Colors.orange,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const DesignListScreen()),
-                      );
-                      _load();
-                    },
-                  ),
-                  _MenuTile(
-                    icon: Icons.fact_check_outlined,
-                    title: 'Check Status',
-                    subtitle: 'Search RP No and check process status',
-                    color: Colors.indigo,
-                    onTap: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const CheckStatusScreen()),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 80),
-                ],
-              ),
-            ),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          _StatCard(
+            title: "Today's Designs",
+            value: '$todayCount',
+            color: Colors.deepPurple,
+            icon: Icons.today,
+          ),
+          const SizedBox(height: 14),
+          Text('This Week (Week $currentWeek)',
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 10),
+          Row(
+            children: [1, 2, 3, 4]
+                .map((w) => Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                        child: _WeekMiniCard(
+                          week: w,
+                          count: weekCounts[w] ?? 0,
+                          highlight: w == currentWeek,
+                        ),
+                      ),
+                    ))
+                .toList(),
+          ),
+          const SizedBox(height: 16),
+          DesignHeatmap(designs: designs),
+          const SizedBox(height: 20),
+          _MenuTile(
+            icon: Icons.insights,
+            title: 'Weekly Funnel & Analytics',
+            subtitle:
+                'Week-wise received vs approved vs strike off vs rotary',
+            color: Colors.teal,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => AnalyticsScreen(designs: designs)),
+              );
+            },
+          ),
+          _MenuTile(
+            icon: Icons.list_alt,
+            title: 'All Designs',
+            subtitle: 'View & update stage dates',
+            color: Colors.orange,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const DesignListScreen()),
+              );
+            },
+          ),
+          _MenuTile(
+            icon: Icons.fact_check_outlined,
+            title: 'Check Status',
+            subtitle: 'Search RP No and check process status',
+            color: Colors.indigo,
+            onTap: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CheckStatusScreen()),
+              );
+            },
+          ),
+          const SizedBox(height: 80),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AddDesignScreen()),
           );
-          _load();
         },
         icon: const Icon(Icons.add),
         label: const Text('New Design'),
