@@ -20,43 +20,47 @@ class WeekUtils {
 
   static String weekLabel(DateTime date) => 'Week ${weekOfMonth(date)}';
 
-  /// How many week-buckets (1..N) this month has. Varies month to month
-  /// (5, 6, or occasionally 7) depending on which weekday the 1st falls on.
   static int weeksInMonth(DateTime month) {
     final lastDay = DateTime(month.year, month.month + 1, 0);
     return weekOfMonth(lastDay);
   }
 
-  /// Returns designs whose `receivedDate` falls in the given month/week.
+  /// Returns the Monday and Saturday dates for the given month/week number.
+  static (DateTime start, DateTime end) weekDateRange(
+      DateTime month, int week) {
+    final firstOfMonth = DateTime(month.year, month.month, 1);
+    final firstMondayOffset = (firstOfMonth.weekday - DateTime.monday) % 7;
+    final firstWeekMonday =
+        firstOfMonth.subtract(Duration(days: firstMondayOffset));
+    final start = firstWeekMonday.add(Duration(days: (week - 1) * 7));
+    final end = start.add(const Duration(days: 5));
+    return (start, end);
+  }
+
+  /// Returns designs whose `receivedDate` falls within this month/week's
+  /// actual Monday-Saturday date range (spillover days from the previous
+  /// or next calendar month are included correctly).
   static List<Design> designsReceivedInWeek(
       List<Design> all, DateTime month, int week) {
+    final (start, end) = weekDateRange(month, week);
     return all.where((d) {
-      final rd = d.receivedDate;
-      return rd.year == month.year &&
-          rd.month == month.month &&
-          weekOfMonth(rd) == week;
+      final rd = DateTime(
+          d.receivedDate.year, d.receivedDate.month, d.receivedDate.day);
+      return !rd.isBefore(start) && !rd.isAfter(end);
     }).toList();
   }
 
-  /// Map of week number -> count of designs received that week,
-  /// for the given month. Covers every week the month actually has.
   static Map<int, int> weeklyReceivedCounts(List<Design> all, DateTime month) {
     final totalWeeks = weeksInMonth(month);
     final counts = <int, int>{
       for (var w = 1; w <= totalWeeks; w++) w: 0,
     };
-    for (final d in all) {
-      final rd = d.receivedDate;
-      if (rd.year == month.year && rd.month == month.month) {
-        final w = weekOfMonth(rd);
-        counts[w] = (counts[w] ?? 0) + 1;
-      }
+    for (var w = 1; w <= totalWeeks; w++) {
+      counts[w] = designsReceivedInWeek(all, month, w).length;
     }
     return counts;
   }
 
-  /// For a set of designs received in a given week, how many have moved
-  /// on to each subsequent stage.
   static Map<DesignStage, int> funnelForWeek(List<Design> weekDesigns) {
     int cad = 0, strike = 0, rotary = 0;
     for (final d in weekDesigns) {
