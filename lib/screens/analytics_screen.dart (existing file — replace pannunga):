@@ -1,0 +1,139 @@
+import 'package:flutter/material.dart';
+import '../models/design.dart';
+import '../services/week_utils.dart';
+
+class AnalyticsScreen extends StatefulWidget {
+  final List<Design> designs;
+  const AnalyticsScreen({super.key, required this.designs});
+
+  @override
+  State<AnalyticsScreen> createState() => _AnalyticsScreenState();
+}
+
+class _AnalyticsScreenState extends State<AnalyticsScreen> {
+  late DateTime _month;
+
+  @override
+  void initState() {
+    super.initState();
+    _month = DateTime(DateTime.now().year, DateTime.now().month);
+  }
+
+  void _changeMonth(int delta) {
+    setState(() {
+      _month = DateTime(_month.year, _month.month + delta);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const monthNames = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+
+    final totalWeeks = WeekUtils.weeksInMonth(_month);
+    final weeks = List<int>.generate(totalWeeks, (i) => i + 1);
+
+    return Scaffold(
+      appBar: AppBar(title: const Text('Weekly Funnel & Analytics')),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                    onPressed: () => _changeMonth(-1),
+                    icon: const Icon(Icons.chevron_left)),
+                Text('${monthNames[_month.month]} ${_month.year}',
+                    style: Theme.of(context).textTheme.titleLarge),
+                IconButton(
+                    onPressed: () => _changeMonth(1),
+                    icon: const Icon(Icons.chevron_right)),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              children: weeks.map((week) {
+                final weekDesigns = WeekUtils.designsReceivedInWeek(
+                    widget.designs, _month, week);
+                final funnel = WeekUtils.funnelForWeek(weekDesigns);
+                return _WeekFunnelCard(week: week, funnel: funnel);
+              }).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekFunnelCard extends StatelessWidget {
+  final int week;
+  final Map<DesignStage, int> funnel;
+
+  const _WeekFunnelCard({required this.week, required this.funnel});
+
+  @override
+  Widget build(BuildContext context) {
+    final received = funnel[DesignStage.received] ?? 0;
+    final cad = funnel[DesignStage.cadApproved] ?? 0;
+    final strike = funnel[DesignStage.strikeOff] ?? 0;
+    final rotary = funnel[DesignStage.rotaryScreen] ?? 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 14),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Week $week',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 10),
+            _funnelRow('Design Received', received, received,
+                Colors.blueGrey),
+            _funnelRow('CAD Approved', cad, received, Colors.blue),
+            _funnelRow('Strike Off Given', strike, received, Colors.orange),
+            _funnelRow('Rotary Screen Printed', rotary, received,
+                Colors.green),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _funnelRow(String label, int count, int base, Color color) {
+    final pct = base == 0 ? 0.0 : count / base;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 13)),
+              Text('$count', style: const TextStyle(fontWeight: FontWeight.bold)),
+            ],
+          ),
+          const SizedBox(height: 3),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: pct,
+              minHeight: 8,
+              backgroundColor: color.withOpacity(0.15),
+              valueColor: AlwaysStoppedAnimation(color),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
