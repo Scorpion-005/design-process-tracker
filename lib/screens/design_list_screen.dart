@@ -12,24 +12,7 @@ class DesignListScreen extends StatefulWidget {
 }
 
 class _DesignListScreenState extends State<DesignListScreen> {
-  List<Design> _all = [];
   String _query = '';
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final data = await DatabaseService.instance.getAllDesigns();
-    setState(() {
-      _all = data;
-      _loading = false;
-    });
-  }
 
   Color _stageColor(DesignStage s) {
     switch (s) {
@@ -46,10 +29,6 @@ class _DesignListScreenState extends State<DesignListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _all
-        .where((d) => d.name.toLowerCase().contains(_query.toLowerCase()))
-        .toList();
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('All Designs'),
@@ -69,49 +48,60 @@ class _DesignListScreenState extends State<DesignListScreen> {
             ),
           ),
           Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : filtered.isEmpty
-                    ? const Center(child: Text('No designs yet'))
-                    : RefreshIndicator(
-                        onRefresh: _load,
-                        child: ListView.builder(
-                          itemCount: filtered.length,
-                          itemBuilder: (context, i) {
-                            final d = filtered[i];
-                            final stage = d.currentStage;
-                            return Card(
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: 12, vertical: 6),
-                              child: ListTile(
-                                title: Text(
-                                    d.rpNo != null && d.rpNo!.isNotEmpty
-                                        ? '${d.rpNo} - ${d.name}'
-                                        : d.name,
-                                    style: const TextStyle(
-                                        fontWeight: FontWeight.bold)),
-                                subtitle: Text(
-                                    '${(d.customerName != null && d.customerName!.isNotEmpty) ? '${d.customerName} • ' : ''}Received: ${DateFormat('dd MMM yyyy').format(d.receivedDate)}'),
-                                trailing: Chip(
-                                  label: Text(stage.label,
-                                      style: const TextStyle(
-                                          fontSize: 11, color: Colors.white)),
-                                  backgroundColor: _stageColor(stage),
-                                ),
-                                onTap: () async {
-                                  await Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) =>
-                                            DesignDetailScreen(design: d)),
-                                  );
-                                  _load();
-                                },
-                              ),
-                            );
-                          },
+            child: StreamBuilder<List<Design>>(
+              stream: DatabaseService.instance.watchAllDesigns(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                final all = snapshot.data ?? [];
+                final filtered = all
+                    .where((d) =>
+                        d.name.toLowerCase().contains(_query.toLowerCase()))
+                    .toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text('No designs yet'));
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (context, i) {
+                    final d = filtered[i];
+                    final stage = d.currentStage;
+                    return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
+                      child: ListTile(
+                        title: Text(
+                            d.rpNo != null && d.rpNo!.isNotEmpty
+                                ? '${d.rpNo} - ${d.name}'
+                                : d.name,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold)),
+                        subtitle: Text(
+                            '${(d.customerName != null && d.customerName!.isNotEmpty) ? '${d.customerName} • ' : ''}Received: ${DateFormat('dd MMM yyyy').format(d.receivedDate)}'),
+                        trailing: Chip(
+                          label: Text(stage.label,
+                              style: const TextStyle(
+                                  fontSize: 11, color: Colors.white)),
+                          backgroundColor: _stageColor(stage),
                         ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    DesignDetailScreen(design: d)),
+                          );
+                        },
                       ),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),
