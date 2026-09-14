@@ -9,6 +9,7 @@ import 'add_design_screen.dart';
 import 'design_list_screen.dart';
 import 'analytics_screen.dart';
 import 'check_status_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -52,6 +53,16 @@ class _HomeScreenBody extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Design Process Tracker'),
         actions: [
+          IconButton(
+            tooltip: 'Profile',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Export & Share (Excel)',
             icon: const Icon(Icons.ios_share),
