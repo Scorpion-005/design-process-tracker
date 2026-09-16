@@ -58,23 +58,31 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
     );
     if (picked == null) return;
 
-    final designerName =
-        await _askDesignerName(initialName: _fieldBy(field));
-    if (designerName == null) return; // cancelled
+    String? designerName;
+    if (field != 'mailsend') {
+      designerName = await _askDesignerName(initialName: _fieldBy(field));
+      if (designerName == null) return; // cancelled
+    }
 
     setState(() {
       switch (field) {
+        case 'mailsend':
+          _design.designMailSendDate = picked;
+          break;
         case 'cad':
           _design.cadApprovedDate = picked;
-          _design.cadApprovedBy = designerName.isEmpty ? null : designerName;
+          _design.cadApprovedBy =
+              (designerName == null || designerName.isEmpty) ? null : designerName;
           break;
         case 'strike':
           _design.strikeOffDate = picked;
-          _design.strikeOffBy = designerName.isEmpty ? null : designerName;
+          _design.strikeOffBy =
+              (designerName == null || designerName.isEmpty) ? null : designerName;
           break;
         case 'rotary':
           _design.rotaryScreenDate = picked;
-          _design.rotaryScreenBy = designerName.isEmpty ? null : designerName;
+          _design.rotaryScreenBy =
+              (designerName == null || designerName.isEmpty) ? null : designerName;
           break;
       }
     });
@@ -84,6 +92,9 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
   Future<void> _clearDate(String field) async {
     setState(() {
       switch (field) {
+        case 'mailsend':
+          _design.designMailSendDate = null;
+          break;
         case 'cad':
           _design.cadApprovedDate = null;
           _design.cadApprovedBy = null;
@@ -103,6 +114,8 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
 
   DateTime? _fieldDate(String field) {
     switch (field) {
+      case 'mailsend':
+        return _design.designMailSendDate;
       case 'cad':
         return _design.cadApprovedDate;
       case 'strike':
@@ -224,6 +237,10 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            _stageTile(
+                title: 'Design Mail Send',
+                field: 'mailsend',
+                icon: Icons.forward_to_inbox_outlined),
             _stageTile(
                 title: 'CAD / Design Approved',
                 field: 'cad',
