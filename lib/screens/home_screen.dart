@@ -10,7 +10,6 @@ import 'design_list_screen.dart';
 import 'analytics_screen.dart';
 import 'check_status_screen.dart';
 import 'profile_screen.dart';
-import 'custom_export_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -69,7 +68,7 @@ class _HomeScreenBody extends StatelessWidget {
             icon: const Icon(Icons.ios_share),
             onPressed: designs.isEmpty
                 ? null
-                : () => _showExportChoice(context, designs),
+                : () => ExportService.exportAndShare(designs),
           ),
           AnimatedBuilder(
             animation: themeService,
@@ -166,36 +165,6 @@ class _HomeScreenBody extends StatelessWidget {
         icon: const Icon(Icons.add),
         label: const Text('New Design'),
       ),
-    );
-  }
-}
-
-Future<void> _showExportChoice(
-    BuildContext context, List<Design> designs) async {
-  final choice = await showDialog<String>(
-    context: context,
-    builder: (context) => AlertDialog(
-      title: const Text('Export Data'),
-      content: const Text('Choose what you want to export.'),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, 'all'),
-          child: const Text('All Data'),
-        ),
-        FilledButton(
-          onPressed: () => Navigator.pop(context, 'custom'),
-          child: const Text('Customized Data'),
-        ),
-      ],
-    ),
-  );
-
-  if (choice == 'all') {
-    await ExportService.exportAndShare(designs);
-  } else if (choice == 'custom' && context.mounted) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => CustomExportScreen(designs: designs)),
     );
   }
 }
