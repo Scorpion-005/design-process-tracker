@@ -13,11 +13,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   await themeService.load();
-  runApp(const SkeinApp());
+  runApp(const DesignTrackerApp());
 }
 
-class SkeinApp extends StatelessWidget {
-  const SkeinApp({super.key});
+class DesignTrackerApp extends StatelessWidget {
+  const DesignTrackerApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -25,7 +25,7 @@ class SkeinApp extends StatelessWidget {
       animation: themeService,
       builder: (context, _) {
         return MaterialApp(
-          title: 'Skein',
+          title: 'Design Tracker',
           debugShowCheckedModeBanner: false,
           themeMode: themeService.themeMode,
           theme: ThemeData(
