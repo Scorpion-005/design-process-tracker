@@ -9,9 +9,12 @@ import 'week_utils.dart';
 class ExportService {
   static final _fmt = DateFormat('dd-MM-yyyy');
 
-  /// Builds an Excel (.xlsx) report matching the factory's weekly report
-  /// layout: Week -> Date -> Customer groups, with RP numbers stacked,
-  /// day-gap ("Between") columns, and a week total row.
+  /// Builds an Excel (.xlsx) report matching the factory's physical
+  /// "Weekly Reports" sheet exactly:
+  /// WEEKS | DATES | CUSTOMER'S | NO DESIGN | DESIGN FINISH | DESIGN PENDING |
+  /// RP NO | DESIGN MAIL SEND | DESIGN LEAD TIME | CAD APP MAIL |
+  /// S/OFF DATE | S/OFF LEAD TIME | D ROTARY
+  /// grouped Week -> Date -> Customer, with a week total row.
   static Future<void> exportAndShare(List<Design> designs) async {
     final excelFile = Excel.createExcel();
     final sheetName = excelFile.getDefaultSheet() ?? 'Sheet1';
@@ -33,8 +36,6 @@ class ExportService {
     }
 
     int row = 0;
-    int overallStrikeOff = 0;
-    int overallRotary = 0;
 
     for (final monthKey in monthOrder) {
       final monthDesigns = monthGroups[monthKey]!;
@@ -53,15 +54,15 @@ class ExportService {
         'WEEKS',
         'DATES',
         "CUSTOMER'S",
-        'NO.D',
-        'NO.D FINISH',
-        'NO.D PENDING',
-        'RP NO.',
-        'BETWEEN',
+        'NO DESIGN',
+        'DESIGN FINISH',
+        'DESIGN PENDING',
+        'RP NO',
         'DESIGN MAIL SEND',
-        'BETWEEN',
-        'S/OFF',
-        'BETWEEN',
+        'DESIGN LEAD TIME',
+        'CAD APP MAIL',
+        'S/OFF DATE',
+        'S/OFF LEAD TIME',
         'D ROTARY',
       ];
       for (int c = 0; c < headers.length; c++) {
@@ -128,6 +129,12 @@ class ExportService {
                 .where((s) => s.isNotEmpty)
                 .join('\n');
 
+            final mailSendDates = group
+                .map((d) => d.designMailSendDate)
+                .whereType<DateTime>()
+                .toSet()
+                .toList()
+              ..sort();
             final cadDates = group
                 .map((d) => d.cadApprovedDate)
                 .whereType<DateTime>()
@@ -147,16 +154,11 @@ class ExportService {
                 .toList()
               ..sort();
 
-            overallStrikeOff += group.where((d) => d.strikeOffDate != null).length;
-            overallRotary += group.where((d) => d.rotaryScreenDate != null).length;
-
-            final between1 =
-                cadDates.isNotEmpty ? cadDates.first.difference(day).inDays : null;
-            final between2 = (cadDates.isNotEmpty && strikeDates.isNotEmpty)
-                ? strikeDates.first.difference(cadDates.first).inDays
+            final designLeadTime = mailSendDates.isNotEmpty
+                ? mailSendDates.first.difference(day).inDays
                 : null;
-            final between3 = (strikeDates.isNotEmpty && rotaryDates.isNotEmpty)
-                ? rotaryDates.first.difference(strikeDates.first).inDays
+            final sOffLeadTime = (cadDates.isNotEmpty && strikeDates.isNotEmpty)
+                ? strikeDates.first.difference(cadDates.first).inDays
                 : null;
 
             _setCell(sheet, 2, row, custKey);
@@ -164,13 +166,14 @@ class ExportService {
             _setCell(sheet, 4, row, noFinish);
             _setCell(sheet, 5, row, noPending);
             _setCell(sheet, 6, row, rpNos);
-            _setCell(sheet, 7, row, between1);
-            _setCell(sheet, 8, row,
+            _setCell(sheet, 7, row,
+                mailSendDates.map((d) => _fmt.format(d)).join('\n'));
+            _setCell(sheet, 8, row, designLeadTime);
+            _setCell(sheet, 9, row,
                 cadDates.map((d) => _fmt.format(d)).join('\n'));
-            _setCell(sheet, 9, row, between2);
             _setCell(sheet, 10, row,
                 strikeDates.map((d) => _fmt.format(d)).join('\n'));
-            _setCell(sheet, 11, row, between3);
+            _setCell(sheet, 11, row, sOffLeadTime);
             _setCell(sheet, 12, row,
                 rotaryDates.map((d) => _fmt.format(d)).join('\n'));
 
@@ -203,24 +206,11 @@ class ExportService {
         _setCell(sheet, 3, row, weekTotal, bold: true);
         _setCell(sheet, 4, row, weekFinish, bold: true);
         _setCell(sheet, 5, row, weekPending, bold: true);
-        _setCell(sheet, 8, row, "PENDING DESIGN'S=", bold: true);
-        _setCell(sheet, 9, row, weekPending, bold: true);
         row++;
         row++; // blank spacer row between weeks
       }
       row++; // extra blank row between months
     }
-
-    // Overall summary at the very end.
-    row++;
-    _setCell(sheet, 0, row, 'No. of Designs Received', bold: true);
-    _setCell(sheet, 1, row, designs.length, bold: true);
-    row++;
-    _setCell(sheet, 0, row, 'No. of Designs Strike Off', bold: true);
-    _setCell(sheet, 1, row, overallStrikeOff, bold: true);
-    row++;
-    _setCell(sheet, 0, row, 'No. of Designs Rotary Screen', bold: true);
-    _setCell(sheet, 1, row, overallRotary, bold: true);
 
     final bytes = excelFile.encode();
     if (bytes == null) return;
@@ -232,72 +222,8 @@ class ExportService {
 
     await Share.shareXFiles(
       [XFile(file.path)],
-      text: 'Design Process Tracker - Weekly Report',
+      text: 'Design Tracker - Weekly Report',
       subject: 'Design Tracker Export ($stamp)',
-    );
-  }
-
-  /// Flat, column-selectable export for a chosen date range and set of
-  /// fields — used by the "Customized Data" export option.
-  static Future<void> exportCustomAndShare(
-    List<Design> designs, {
-    DateTime? fromDate,
-    DateTime? toDate,
-    required List<String> fields,
-  }) async {
-    final filtered = designs.where((d) {
-      if (fromDate != null && d.receivedDate.isBefore(fromDate)) return false;
-      if (toDate != null && d.receivedDate.isAfter(toDate)) return false;
-      return true;
-    }).toList()
-      ..sort((a, b) => a.receivedDate.compareTo(b.receivedDate));
-
-    final excelFile = Excel.createExcel();
-    final sheetName = excelFile.getDefaultSheet() ?? 'Sheet1';
-    final sheet = excelFile[sheetName];
-
-    final columnValue = <String, String Function(Design)>{
-      'RP No': (d) => d.rpNo ?? '',
-      'Design Name': (d) => d.name,
-      'Company Name': (d) => d.customerName ?? '',
-      'Customer Name': (d) => d.buyerName ?? '',
-      'Received Date': (d) => _fmt.format(d.receivedDate),
-      'CAD Approved Date': (d) =>
-          d.cadApprovedDate != null ? _fmt.format(d.cadApprovedDate!) : '',
-      'CAD Approved By': (d) => d.cadApprovedBy ?? '',
-      'Strike Off Date': (d) =>
-          d.strikeOffDate != null ? _fmt.format(d.strikeOffDate!) : '',
-      'Strike Off By': (d) => d.strikeOffBy ?? '',
-      'Rotary Screen Date': (d) =>
-          d.rotaryScreenDate != null ? _fmt.format(d.rotaryScreenDate!) : '',
-      'Rotary Screen By': (d) => d.rotaryScreenBy ?? '',
-      'Current Stage': (d) => d.currentStage.label,
-    };
-
-    for (int c = 0; c < fields.length; c++) {
-      _setCell(sheet, c, 0, fields[c], bold: true);
-    }
-    for (int r = 0; r < filtered.length; r++) {
-      final d = filtered[r];
-      for (int c = 0; c < fields.length; c++) {
-        final getValue = columnValue[fields[c]];
-        _setCell(sheet, c, r + 1, getValue != null ? getValue(d) : '');
-      }
-    }
-
-    final bytes = excelFile.encode();
-    if (bytes == null) return;
-
-    final dir = await getTemporaryDirectory();
-    final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final file =
-        File('${dir.path}/design_tracker_custom_export_$stamp.xlsx');
-    await file.writeAsBytes(bytes);
-
-    await Share.shareXFiles(
-      [XFile(file.path)],
-      text: 'Design Process Tracker - Custom Export',
-      subject: 'Custom Export ($stamp)',
     );
   }
 
