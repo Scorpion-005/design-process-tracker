@@ -25,6 +25,7 @@ class Design {
   final String name;
   final String? remarks;
   final DateTime receivedDate;
+  DateTime? designMailSendDate;
   DateTime? cadApprovedDate;
   DateTime? strikeOffDate;
   DateTime? rotaryScreenDate;
@@ -40,6 +41,7 @@ class Design {
     required this.name,
     this.remarks,
     required this.receivedDate,
+    this.designMailSendDate,
     this.cadApprovedDate,
     this.strikeOffDate,
     this.rotaryScreenDate,
@@ -60,6 +62,19 @@ class Design {
     return strikeOffDate!.difference(receivedDate).inDays;
   }
 
+  /// "DESIGN LEAD TIME" column: days between design received and design
+  /// mail send.
+  int? get designLeadTimeDays {
+    if (designMailSendDate == null) return null;
+    return designMailSendDate!.difference(receivedDate).inDays;
+  }
+
+  /// "S/OFF LEAD TIME" column: days between CAD app mail and S/OFF date.
+  int? get sOffLeadTimeDays {
+    if (strikeOffDate == null || cadApprovedDate == null) return null;
+    return strikeOffDate!.difference(cadApprovedDate!).inDays;
+  }
+
   Map<String, dynamic> toMap() {
     return {
       'rpNo': rpNo,
@@ -68,6 +83,7 @@ class Design {
       'name': name,
       'remarks': remarks,
       'receivedDate': receivedDate.toIso8601String(),
+      'designMailSendDate': designMailSendDate?.toIso8601String(),
       'cadApprovedDate': cadApprovedDate?.toIso8601String(),
       'strikeOffDate': strikeOffDate?.toIso8601String(),
       'rotaryScreenDate': rotaryScreenDate?.toIso8601String(),
@@ -86,6 +102,9 @@ class Design {
       name: map['name'] as String,
       remarks: map['remarks'] as String?,
       receivedDate: DateTime.parse(map['receivedDate'] as String),
+      designMailSendDate: map['designMailSendDate'] != null
+          ? DateTime.parse(map['designMailSendDate'] as String)
+          : null,
       cadApprovedDate: map['cadApprovedDate'] != null
           ? DateTime.parse(map['cadApprovedDate'] as String)
           : null,
@@ -113,6 +132,7 @@ class Design {
     String? name,
     String? remarks,
     DateTime? receivedDate,
+    DateTime? designMailSendDate,
     DateTime? cadApprovedDate,
     DateTime? strikeOffDate,
     DateTime? rotaryScreenDate,
@@ -128,6 +148,7 @@ class Design {
       name: name ?? this.name,
       remarks: remarks ?? this.remarks,
       receivedDate: receivedDate ?? this.receivedDate,
+      designMailSendDate: designMailSendDate ?? this.designMailSendDate,
       cadApprovedDate: cadApprovedDate ?? this.cadApprovedDate,
       strikeOffDate: strikeOffDate ?? this.strikeOffDate,
       rotaryScreenDate: rotaryScreenDate ?? this.rotaryScreenDate,
