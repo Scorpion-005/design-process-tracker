@@ -22,11 +22,10 @@ class ExportService {
   /// "Weekly Reports" sheet exactly:
   /// WEEKS | DATES | CUSTOMER'S | NO DESIGN | DESIGN FINISH | DESIGN PENDING |
   /// RP NO | DESIGN MAIL SEND | DESIGN LEAD TIME | CAD APP MAIL |
-  /// S/OFF DATE | S/OFF LEAD TIME | D ROTARY
+  /// S/OFF DATE | S/OFF LEAD TIME | D ROTARY | REMARKS
   ///
-  /// If CAD APP MAIL, S/OFF DATE, or D ROTARY is empty for a design,
-  /// that design's entire row is shown in red text so incomplete rows
-  /// stand out at a glance.
+  /// If DESIGN MAIL SEND is empty for a design, that design's entire
+  /// row is shown in red text so unsent designs stand out at a glance.
   static Future<void> exportAndShare(List<Design> designs) async {
     final excelFile = Excel.createExcel();
     final sheetName = excelFile.getDefaultSheet() ?? 'Sheet1';
@@ -68,6 +67,7 @@ class ExportService {
     }
 
     int row = 0;
+    const lastCol = 13; // 0..13 = 14 columns, REMARKS is the last one
 
     for (final sectionKey in sectionOrder) {
       final mondaysInSection = sectionWeeks[sectionKey]!;
@@ -79,7 +79,7 @@ class ExportService {
           bold: true, colMaxLen: colMaxLen);
       sheet.merge(
         CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: row),
-        CellIndex.indexByColumnRow(columnIndex: 12, rowIndex: row),
+        CellIndex.indexByColumnRow(columnIndex: lastCol, rowIndex: row),
       );
       sheet.setRowHeight(row, 22);
       row++;
@@ -98,6 +98,7 @@ class ExportService {
         'S/OFF DATE',
         'S/OFF LEAD TIME',
         'D ROTARY',
+        'REMARKS',
       ];
       for (int c = 0; c < headers.length; c++) {
         final isLeadTimeCol = c == 8 || c == 11;
@@ -138,12 +139,8 @@ class ExportService {
             final noFinish = d.designMailSendDate != null ? 1 : 0;
             final noPending = 1 - noFinish;
 
-            // If CAD App Mail, S/OFF Date, or D Rotary is missing,
-            // the whole row's text is shown in red.
-            final incomplete = d.cadApprovedDate == null ||
-                d.strikeOffDate == null ||
-                d.rotaryScreenDate == null;
-            final rowFont = incomplete ? _redFont : null;
+            // Row turns red when Design Mail Send hasn't happened yet.
+            final rowFont = d.designMailSendDate == null ? _redFont : null;
 
             _setCell(sheet, 2, row, d.customerName ?? '',
                 fontColor: rowFont, colMaxLen: colMaxLen);
@@ -160,7 +157,7 @@ class ExportService {
                 row,
                 d.designMailSendDate != null
                     ? _fmt.format(d.designMailSendDate!)
-                    : '',
+                    : '-',
                 fontColor: rowFont,
                 colMaxLen: colMaxLen);
             _setCell(sheet, 8, row, d.designLeadTimeDays,
@@ -186,6 +183,8 @@ class ExportService {
                     : '-',
                 fontColor: rowFont,
                 colMaxLen: colMaxLen);
+            _setCell(sheet, 13, row, d.remarks ?? '',
+                fontColor: rowFont, colMaxLen: colMaxLen);
 
             sheet.setRowHeight(row, 20);
             weekTotal += 1;
