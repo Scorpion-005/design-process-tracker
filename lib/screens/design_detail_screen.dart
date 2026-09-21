@@ -330,7 +330,7 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
                 field: 'cad',
                 icon: Icons.check_circle_outline),
             _stageTile(
-                title: 'Strike Off Given',
+                title: 'Strike Off Finished',
                 field: 'strike',
                 icon: Icons.print_outlined),
             _stageTile(
