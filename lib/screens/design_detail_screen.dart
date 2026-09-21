@@ -25,7 +25,7 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
     return showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Designer Name?'),
+        title: const Text('Name of the Designer?'),
         content: TextField(
           controller: ctrl,
           autofocus: true,
