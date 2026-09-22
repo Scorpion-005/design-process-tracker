@@ -1,0 +1,76 @@
+workflows:
+  android-workflow:
+    name: Design Tracker Android Build
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      groups:
+        - github
+      vars:
+        GITHUB_REPO_OWNER: "Scorpion-005"
+        GITHUB_REPO_NAME: "design-process-tracker"
+    scripts:
+      - name: Generate platform files
+        script: |
+          flutter create . --platforms=android
+      - name: Add Firebase Google Services plugin
+        script: |
+          python3 - << 'PYEOF'
+          settings = 'android/settings.gradle.kts'
+          content = open(settings).read()
+          content = content.replace(
+              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"',
+              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n    id("com.google.gms.google-services") version "4.4.2" apply false'
+          )
+          open(settings, 'w').write(content)
+
+          appgradle = 'android/app/build.gradle.kts'
+          content = open(appgradle).read()
+          content = content.replace(
+              'id("dev.flutter.flutter-gradle-plugin")',
+              'id("dev.flutter.flutter-gradle-plugin")\n    id("com.google.gms.google-services")'
+          )
+          open(appgradle, 'w').write(content)
+          PYEOF
+      - name: Add notification permission
+        script: |
+          python3 - << 'PYEOF'
+          manifest = 'android/app/src/main/AndroidManifest.xml'
+          content = open(manifest).read()
+          if 'POST_NOTIFICATIONS' not in content:
+              content = content.replace(
+                  '<manifest',
+                  '<manifest',
+                  1
+              )
+              content = content.replace(
+                  '<application',
+                  '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application',
+                  1
+              )
+              open(manifest, 'w').write(content)
+          PYEOF
+      - name: Get dependencies
+        script: |
+          flutter pub get
+      - name: Build APK
+        script: |
+          flutter build apk --debug --build-number=$BUILD_NUMBER
+      - name: Publish GitHub Release with APK
+        script: |
+          APK_PATH=$(find build -name "*.apk" | head -1)
+          TAG="$BUILD_NUMBER"
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases" \
+            -d "{\"tag_name\": \"$TAG\", \"name\": \"Build $TAG\", \"body\": \"Automated build\"}" \
+            > release_response.json
+          UPLOAD_URL=$(python3 -c "import json;print(json.load(open('release_response.json'))['upload_url'].split('{')[0])")
+          curl -s -X POST \
+            -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"$APK_PATH" \
+            "$UPLOAD_URL?name=app-release.apk"
+    artifacts:
+      - build/**/outputs/**/*.apk
