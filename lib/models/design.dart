@@ -10,7 +10,7 @@ extension DesignStageX on DesignStage {
       case DesignStage.cadApproved:
         return 'CAD / Design Approved';
       case DesignStage.strikeOff:
-        return 'Strike Off Given';
+        return 'Strike Off Finished';
       case DesignStage.rotaryScreen:
         return 'Rotary Screen Printed';
     }
