@@ -99,7 +99,7 @@ class _WeekFunnelCard extends StatelessWidget {
             _funnelRow('Design Received', received, received,
                 Colors.blueGrey),
             _funnelRow('CAD Approved', cad, received, Colors.blue),
-            _funnelRow('Strike Off Given', strike, received, Colors.orange),
+            _funnelRow('Strike Off Finished', strike, received, Colors.orange),
             _funnelRow('Rotary Screen Printed', rotary, received,
                 Colors.green),
           ],
