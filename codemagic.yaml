@@ -72,7 +72,7 @@ workflows:
             yes | shorebird patch android
           else
             echo "Building a full Shorebird release APK."
-            yes | shorebird release android --build-number=$BUILD_NUMBER
+            yes | shorebird release android --artifact=apk --build-number=$BUILD_NUMBER
           fi
       - name: Publish GitHub Release with APK
         script: |
