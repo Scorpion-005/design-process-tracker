@@ -1,5 +1,5 @@
 name: design_process_tracker
-description: Threadz Studio - Design Process Tracker (Received -> CAD Approved -> Strike Off -> Rotary Screen)
+description: Design Process Tracker (Received -> CAD Approved -> Strike Off -> Rotary Screen)
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -36,5 +36,3 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-  assets:
-    - shorebird.yaml
