@@ -9,7 +9,19 @@ workflows:
       vars:
         GITHUB_REPO_OWNER: "Scorpion-005"
         GITHUB_REPO_NAME: "design-process-tracker"
+        # SHOREBIRD_MODE: "release" for the very first build (creates a full
+        #   installable APK). Change to "patch" after that first build has
+        #   been installed on your friend's phone — every push after that
+        #   becomes a silent, no-install-needed update.
+        SHOREBIRD_MODE: "release"
+        # SHOREBIRD_TOKEN: add this as a Codemagic *secure* environment
+        #   variable (get it by running `shorebird login:ci` on your
+        #   laptop), not here in plain text.
     scripts:
+      - name: Install Shorebird CLI
+        script: |
+          curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
+          echo "PATH=$HOME/.shorebird/bin:$PATH" >> $CM_ENV
       - name: Generate platform files
         script: |
           flutter create . --platforms=android
@@ -53,18 +65,29 @@ workflows:
       - name: Get dependencies
         script: |
           flutter pub get
-      - name: Build APK
+      - name: Build with Shorebird
         script: |
-          flutter build apk --debug --build-number=$BUILD_NUMBER
+          if [ "$SHOREBIRD_MODE" = "patch" ]; then
+            echo "Pushing a silent Shorebird patch (no new APK needed)."
+            shorebird patch android --platforms=android --no-confirm
+          else
+            echo "Building a full Shorebird release APK."
+            shorebird release android --no-confirm --build-number=$BUILD_NUMBER
+          fi
       - name: Publish GitHub Release with APK
         script: |
+          if [ "$SHOREBIRD_MODE" = "patch" ]; then
+            echo "Patch mode: nothing to publish, friend's app updates itself."
+            exit 0
+          fi
           APK_PATH=$(find build -name "*.apk" | head -1)
           TAG="$BUILD_NUMBER"
+          NOTES=$(git log -8 --pretty=format:"- %s" | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
           curl -s -X POST \
             -H "Authorization: token $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$GITHUB_REPO_OWNER/$GITHUB_REPO_NAME/releases" \
-            -d "{\"tag_name\": \"$TAG\", \"name\": \"Build $TAG\", \"body\": \"Automated build\"}" \
+            -d "{\"tag_name\": \"$TAG\", \"name\": \"Build $TAG\", \"body\": $NOTES}" \
             > release_response.json
           UPLOAD_URL=$(python3 -c "import json;print(json.load(open('release_response.json'))['upload_url'].split('{')[0])")
           curl -s -X POST \
