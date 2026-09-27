@@ -3,11 +3,12 @@ workflows:
     name: Design Tracker Android Build
     max_build_duration: 30
     environment:
-      # Pinned instead of "stable" so this always matches the version we
-      # tell Shorebird to use below (avoids a Flutter-version mismatch
-      # between the pub get / platform-file steps and the Shorebird
-      # release build, which was causing compileFlutterBuildRelease to fail).
-      flutter: 3.29.0
+      # Keep "stable" — the committed android/ files (Gradle 9.3.1, AGP 9.1.0)
+      # were generated against the current stable Flutter, so downgrading
+      # this breaks the Gradle/Groovy toolchain. We capture whatever
+      # version "stable" resolves to below and hand that exact version to
+      # Shorebird, instead of hard-coding a number that can drift out of sync.
+      flutter: stable
       groups:
         - github
       vars:
@@ -21,13 +22,19 @@ workflows:
         # SHOREBIRD_TOKEN: add this as a Codemagic *secure* environment
         #   variable (get it by running `shorebird login:ci` on your
         #   laptop), not here in plain text.
-        # Keep this in sync with the "flutter:" version above.
-        FLUTTER_VERSION: "3.29.0"
     scripts:
       - name: Install Shorebird CLI
         script: |
           curl --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/shorebirdtech/install/main/install.sh | bash
           echo "PATH=$HOME/.shorebird/bin:$PATH" >> $CM_ENV
+      - name: Detect Flutter version
+        script: |
+          # Capture exactly what "stable" resolved to this run, so the
+          # Shorebird build step below uses the SAME Flutter version as
+          # the pub get / platform-file generation steps.
+          FLUTTER_VERSION=$(flutter --version --machine | python3 -c "import json,sys; print(json.load(sys.stdin)['frameworkVersion'])")
+          echo "Detected Flutter version: $FLUTTER_VERSION"
+          echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $CM_ENV
       - name: Generate platform files
         script: |
           flutter create . --platforms=android
@@ -73,6 +80,7 @@ workflows:
           flutter pub get
       - name: Build with Shorebird
         script: |
+          echo "Using Flutter version: $FLUTTER_VERSION"
           if [ "$SHOREBIRD_MODE" = "patch" ]; then
             echo "Pushing a silent Shorebird patch (no new APK needed)."
             yes | shorebird patch android --flutter-version=$FLUTTER_VERSION
