@@ -104,13 +104,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Threadz Studio',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.grey,
-                      ),
-                ),
                 const SizedBox(height: 32),
                 TextField(
                   controller: _emailController,
