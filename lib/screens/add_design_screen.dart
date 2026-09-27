@@ -50,10 +50,13 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
       rpNo: _rpNoCtrl.text.trim().isEmpty
           ? 'New Design'
           : _rpNoCtrl.text.trim().toUpperCase(),
-      name: _nameCtrl.text.trim(),
-      customerName: _companyName.trim().isEmpty ? null : _companyName.trim(),
-      buyerName:
-          _buyerCtrl.text.trim().isEmpty ? null : _buyerCtrl.text.trim(),
+      name: _nameCtrl.text.trim().toUpperCase(),
+      customerName: _companyName.trim().isEmpty
+          ? null
+          : _companyName.trim().toUpperCase(),
+      buyerName: _buyerCtrl.text.trim().isEmpty
+          ? null
+          : _buyerCtrl.text.trim().toUpperCase(),
       receivedDate: _receivedDate,
     );
     await DatabaseService.instance.insertDesign(design);
@@ -72,6 +75,7 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
             children: [
               TextFormField(
                 controller: _rpNoCtrl,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                   labelText: 'RP No',
                   border: OutlineInputBorder(),
@@ -89,6 +93,7 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _nameCtrl,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                     labelText: 'Design Name',
                     border: OutlineInputBorder()),
@@ -151,6 +156,7 @@ class _AddDesignScreenState extends State<AddDesignScreen> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _buyerCtrl,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                     labelText: 'Customer Name',
                     border: OutlineInputBorder()),
