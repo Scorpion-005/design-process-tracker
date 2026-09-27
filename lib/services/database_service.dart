@@ -36,7 +36,7 @@ class DatabaseService {
 
   /// Always stores the company name in UPPERCASE, no matter how it was
   /// typed, so "spike creation" and "SPIKE CREATION" are always treated
-  /// as the exact same company â€” no duplicate entries.
+  /// as the exact same company — no duplicate entries.
   Design _normalizeCompanyName(Design design) {
     final trimmed = design.customerName?.trim();
     if (trimmed == null || trimmed.isEmpty) return design;
@@ -105,9 +105,90 @@ class DatabaseService {
     }).toList();
   }
 
+  // One-time seed list: existing company folder names, entered here so
+  // they show up as suggestions immediately even before any new design
+  // references them. Once added to the permanent list below, this const
+  // list is never needed again — it just seeds it on first run.
+  static const List<String> _seedCompanyNames = [
+    'NAVAGIRI EXPORTS',
+    'SCM GARMENTS PVT LTD',
+    'SP APPARELS',
+    'KAYTEE CORPORATION',
+    'KPR SUGAR AND APPARELS LIMITED',
+    'SRI COTTON KNITS',
+    'MORNING STAAR',
+    'SHAKTHI KNITTING',
+    'SYNERGY CLOTHING COMPANY',
+    'FUSION TENIM & CO',
+    'RPK',
+    'S.ARADHANA KNITTING MILLS',
+    'CENTURY APPARELS',
+    'ELITE CLOTHING COMPANY',
+    'KITEX GARMENTS',
+    'WHITE HOUSE',
+    'KM 3',
+    'VKN FABRIC',
+    'KANNIAMMAN EXPORTS (ESSEN)',
+    'KM 1',
+    'DEEKAY',
+    'J G HOSIERY (P) LTD',
+    'GAINUP',
+    'MONEY APPARELS',
+    'HERO FASHION',
+    'S.V. KNITS',
+    'FASHION CREATOR',
+    'JAY JAY MILLS',
+    'KM 2',
+    'JVC GARMENTS',
+    'BLUE BREEZE',
+    'THAI POLYESTER CO.LTD',
+    'ESSA GARMENTS',
+    'POPPYS KNIT WEAR',
+    'SIVAKAMI DESIGNERS',
+    'GRASS GREEN CLOTHING',
+    'AV FASHION',
+    'POLESTER GARMENTS',
+    'KUMARAGIRI SPINNERSS (P) LIMITED',
+    'ORIGINAL KNIT EXPORTS',
+    'DHIKKSHA EXPORTS',
+    'AVISH FASHION PVT LTD',
+    'KANISKA GARMENTS',
+    'QUANTUM 3',
+    'SPIKE CREATION',
+    'COTTON BLOSSOM',
+    'ISWARYA KNIT FABS',
+    'JVC FABRIC SALES',
+    'SNQS',
+    'BALU EXPORTS',
+    'VICTORIAN GLOBAL CLOTHING',
+    'VEECEE EXPORTS',
+    'SRI ANURAGAVI GARMENTS',
+    'SKL EXPORTS',
+    'KM 7',
+    'VISHNU CLOTHING',
+    'KM 4',
+    'TJ APPARELS',
+    'ESA CLOTHING COMPANY (JUBILEE)',
+    'AKRUTHI APPARELS',
+    'KM 9',
+    'GREETINGS KNIT WEARS',
+    'UNISOURCE',
+    'HONEYWELL CREATION',
+    'INDIAN STITCHES PVT LTD',
+    'JAYAKUMARAN EXPORTS',
+    'KM 14',
+    'AISHWARYA FABRICS',
+    'JKR FABRICKS',
+    'TECHNO SPORTS',
+    'KM HO',
+    'GUS CLOTHING',
+    'KM 11',
+    'TRICO GLOBAL TRADES',
+  ];
+
   /// Adds [name] (UPPERCASED) to the permanent company list. Using the
   /// uppercased name itself as the document id means saving the same
-  /// company twice is a harmless no-op â€” duplicates can never happen.
+  /// company twice is a harmless no-op — duplicates can never happen.
   Future<void> saveCompanyName(String name) async {
     final upper = name.trim().toUpperCase();
     if (upper.isEmpty) return;
@@ -115,20 +196,28 @@ class DatabaseService {
   }
 
   /// Every distinct company name ever saved, for the Company Name
-  /// autocomplete on the Add Design screen. Combines two sources so
+  /// autocomplete on the Add Design screen. Combines three sources so
   /// nothing gets lost:
-  ///  1. The permanent company_names list â€” grows forever, survives
+  ///  1. The permanent company_names list — grows forever, survives
   ///     design deletions.
   ///  2. Company names already sitting on existing designs (from before
-  ///     this permanent list existed) â€” kept here so old data still
+  ///     this permanent list existed) — kept here so old data still
   ///     shows up as suggestions too.
+  ///  3. The one-time seed list above — any name from it that isn't in
+  ///     the permanent list yet gets written there, so this only ever
+  ///     runs once per name.
   Future<List<String>> fetchDistinctCompanyNames() async {
     final names = <String>{};
 
     final companySnapshot = await _companyCollection.get();
+    final existingUpper = <String>{};
     for (final doc in companySnapshot.docs) {
       final name = (doc.data() as Map<String, dynamic>)['name'] as String?;
-      if (name != null && name.trim().isNotEmpty) names.add(name.trim());
+      if (name != null && name.trim().isNotEmpty) {
+        final upper = name.trim().toUpperCase();
+        names.add(upper);
+        existingUpper.add(upper);
+      }
     }
 
     final designSnapshot = await _collection.get();
@@ -138,9 +227,21 @@ class DatabaseService {
       if (raw != null && raw.isNotEmpty) {
         final upper = raw.toUpperCase();
         names.add(upper);
-        // Backfill this old name into the permanent list so next time
-        // it comes only from there, and survives if this design is
-        // ever deleted.
+        if (!existingUpper.contains(upper)) {
+          // Backfill this old name into the permanent list so next time
+          // it comes only from there, and survives if this design is
+          // ever deleted.
+          existingUpper.add(upper);
+          unawaited(saveCompanyName(upper));
+        }
+      }
+    }
+
+    for (final seed in _seedCompanyNames) {
+      final upper = seed.trim().toUpperCase();
+      names.add(upper);
+      if (!existingUpper.contains(upper)) {
+        existingUpper.add(upper);
         unawaited(saveCompanyName(upper));
       }
     }
@@ -150,7 +251,7 @@ class DatabaseService {
   }
 
   /// Explicitly removes a company from the suggestion list. This is
-  /// never called automatically by deleteDesign/updateDesign â€” a company
+  /// never called automatically by deleteDesign/updateDesign — a company
   /// only disappears from suggestions if this is called on purpose.
   Future<void> deleteCompanyName(String name) async {
     await _companyCollection.doc(name.trim().toUpperCase()).delete();
