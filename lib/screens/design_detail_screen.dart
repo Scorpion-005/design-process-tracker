@@ -29,6 +29,7 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
         content: TextField(
           controller: ctrl,
           autofocus: true,
+          textCapitalization: TextCapitalization.characters,
           decoration: const InputDecoration(
             labelText: 'Designer name',
             border: OutlineInputBorder(),
@@ -40,7 +41,8 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, ctrl.text.trim()),
+            onPressed: () =>
+                Navigator.pop(context, ctrl.text.trim().toUpperCase()),
             child: const Text('Save'),
           ),
         ],
@@ -149,7 +151,7 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
             color: date != null ? Colors.green : Colors.grey),
         title: Text(title),
         subtitle: Text(date != null
-            ? '${DateFormat('dd MMM yyyy').format(date)}${by != null && by.isNotEmpty ? ' Â· $by' : ''}'
+            ? '${DateFormat('dd MMM yyyy').format(date)}${by != null && by.isNotEmpty ? ' · $by' : ''}'
             : 'Not done yet'),
         trailing: Wrap(
           spacing: 4,
@@ -203,6 +205,7 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
               const SizedBox(height: 14),
               TextField(
                 controller: customerCtrl,
+                textCapitalization: TextCapitalization.characters,
                 decoration: const InputDecoration(
                   labelText: 'Customer Name',
                   border: OutlineInputBorder(),
@@ -229,8 +232,8 @@ class _DesignDetailScreenState extends State<DesignDetailScreen> {
     final newRpNo = rpCtrl.text.trim().isEmpty
         ? 'New Design'
         : rpCtrl.text.trim().toUpperCase();
-    final newCompany = companyCtrl.text.trim();
-    final newCustomer = customerCtrl.text.trim();
+    final newCompany = companyCtrl.text.trim().toUpperCase();
+    final newCustomer = customerCtrl.text.trim().toUpperCase();
 
     setState(() {
       _design = Design(
