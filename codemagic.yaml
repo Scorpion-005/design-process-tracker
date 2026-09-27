@@ -3,11 +3,8 @@ workflows:
     name: Design Tracker Android Build
     max_build_duration: 30
     environment:
-      # Keep "stable" — the committed android/ files (Gradle 9.3.1, AGP 9.1.0)
-      # were generated against the current stable Flutter, so downgrading
-      # this breaks the Gradle/Groovy toolchain. We capture whatever
-      # version "stable" resolves to below and hand that exact version to
-      # Shorebird, instead of hard-coding a number that can drift out of sync.
+      # Keep "stable" — we still capture the exact resolved version below
+      # and hand it to Shorebird, so both stages match.
       flutter: stable
       groups:
         - github
@@ -31,31 +28,38 @@ workflows:
         script: |
           # Capture exactly what "stable" resolved to this run, so the
           # Shorebird build step below uses the SAME Flutter version as
-          # the pub get / platform-file generation steps.
+          # the pub get step.
           FLUTTER_VERSION=$(flutter --version --machine | python3 -c "import json,sys; print(json.load(sys.stdin)['frameworkVersion'])")
           echo "Detected Flutter version: $FLUTTER_VERSION"
           echo "FLUTTER_VERSION=$FLUTTER_VERSION" >> $CM_ENV
-      - name: Generate platform files
-        script: |
-          flutter create . --platforms=android
+      # NOTE: The "flutter create . --platforms=android" step that used to be
+      # here has been REMOVED. It was re-generating android/ from the newest
+      # Flutter template on every build, silently overwriting our pinned
+      # Gradle/AGP versions (android/gradle/wrapper/gradle-wrapper.properties
+      # and android/settings.gradle.kts) with AGP 9+, which caused the
+      # repeated "newDsl" build failures. The android/ folder is already
+      # committed in the repo with the correct pinned versions, so we don't
+      # need to regenerate it.
       - name: Add Firebase Google Services plugin
         script: |
           python3 - << 'PYEOF'
           settings = 'android/settings.gradle.kts'
           content = open(settings).read()
-          content = content.replace(
-              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"',
-              'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n    id("com.google.gms.google-services") version "4.4.2" apply false'
-          )
-          open(settings, 'w').write(content)
+          if 'com.google.gms.google-services' not in content:
+              content = content.replace(
+                  'id("dev.flutter.flutter-plugin-loader") version "1.0.0"',
+                  'id("dev.flutter.flutter-plugin-loader") version "1.0.0"\n    id("com.google.gms.google-services") version "4.4.2" apply false'
+              )
+              open(settings, 'w').write(content)
 
           appgradle = 'android/app/build.gradle.kts'
           content = open(appgradle).read()
-          content = content.replace(
-              'id("dev.flutter.flutter-gradle-plugin")',
-              'id("dev.flutter.flutter-gradle-plugin")\n    id("com.google.gms.google-services")'
-          )
-          open(appgradle, 'w').write(content)
+          if 'com.google.gms.google-services' not in content:
+              content = content.replace(
+                  'id("dev.flutter.flutter-gradle-plugin")',
+                  'id("dev.flutter.flutter-gradle-plugin")\n    id("com.google.gms.google-services")'
+              )
+              open(appgradle, 'w').write(content)
           PYEOF
       - name: Add notification permission
         script: |
@@ -63,11 +67,6 @@ workflows:
           manifest = 'android/app/src/main/AndroidManifest.xml'
           content = open(manifest).read()
           if 'POST_NOTIFICATIONS' not in content:
-              content = content.replace(
-                  '<manifest',
-                  '<manifest',
-                  1
-              )
               content = content.replace(
                   '<application',
                   '<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>\n    <application',
