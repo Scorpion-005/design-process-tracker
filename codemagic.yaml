@@ -80,7 +80,13 @@ workflows:
             echo "Patch mode: nothing to publish, friend's app updates itself."
             exit 0
           fi
-          APK_PATH=$(find build -name "*.apk" | head -1)
+          APK_PATH=$(find . -path "*/outputs/*" -name "*.apk" 2>/dev/null | head -1)
+          if [ -z "$APK_PATH" ]; then
+            echo "ERROR: No APK found. Listing all apk files in repo for debugging:"
+            find . -name "*.apk" 2>/dev/null
+            exit 1
+          fi
+          echo "Found APK at: $APK_PATH"
           TAG="$BUILD_NUMBER"
           NOTES=$(git log -8 --pretty=format:"- %s" | python3 -c "import json,sys; print(json.dumps(sys.stdin.read()))")
           curl -s -X POST \
