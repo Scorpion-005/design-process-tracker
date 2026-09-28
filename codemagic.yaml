@@ -1,7 +1,7 @@
 workflows:
   android-workflow:
     name: Design Tracker Android Build
-    max_build_duration: 30
+    max_build_duration: 60
     environment:
       # Keep "stable" — we still capture the exact resolved version below
       # and hand it to Shorebird, so both stages match.
@@ -74,6 +74,22 @@ workflows:
               )
               open(manifest, 'w').write(content)
           PYEOF
+      - name: Make Gradle downloads more patient
+        script: |
+          # A "Read timed out" while fetching gradle/AGP jars from
+          # dl.google.com is a temporary network hiccup on the build
+          # machine, not a code problem. Give downloads more time and
+          # let Gradle retry them itself.
+          touch android/gradle.properties
+          if ! grep -q "internal.http.socketTimeout" android/gradle.properties; then
+            {
+              echo ""
+              echo "systemProp.org.gradle.internal.http.connectionTimeout=180000"
+              echo "systemProp.org.gradle.internal.http.socketTimeout=180000"
+              echo "systemProp.org.gradle.internal.repository.max.retries=6"
+              echo "systemProp.org.gradle.internal.repository.initial.backoff=1000"
+            } >> android/gradle.properties
+          fi
       - name: Get dependencies
         script: |
           flutter pub get
@@ -81,11 +97,26 @@ workflows:
         script: |
           echo "Using Flutter version: $FLUTTER_VERSION"
           if [ "$SHOREBIRD_MODE" = "patch" ]; then
-            echo "Pushing a silent Shorebird patch (no new APK needed)."
-            yes | shorebird patch android --flutter-version=$FLUTTER_VERSION
+            BUILD_CMD="shorebird patch android --flutter-version=$FLUTTER_VERSION"
           else
-            echo "Building a full Shorebird release APK."
-            yes | shorebird release android --artifact=apk --build-number=$BUILD_NUMBER --flutter-version=$FLUTTER_VERSION
+            BUILD_CMD="shorebird release android --artifact=apk --build-number=$BUILD_NUMBER --flutter-version=$FLUTTER_VERSION"
+          fi
+          # Retry up to 3 times: a failed build never uploads anything to
+          # Shorebird, so trying again is safe, and it rides out temporary
+          # network timeouts while downloading Gradle dependencies.
+          SUCCESS=0
+          for ATTEMPT in 1 2 3; do
+            echo "=== Attempt $ATTEMPT of 3: $BUILD_CMD ==="
+            if yes | $BUILD_CMD; then
+              SUCCESS=1
+              break
+            fi
+            echo "Attempt $ATTEMPT failed. Waiting 20s before retrying..."
+            sleep 20
+          done
+          if [ "$SUCCESS" != "1" ]; then
+            echo "All 3 attempts failed."
+            exit 1
           fi
       - name: Publish GitHub Release with APK
         script: |
