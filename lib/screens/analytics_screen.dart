@@ -81,7 +81,6 @@ class _WeekFunnelCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final received = funnel[DesignStage.received] ?? 0;
-    final mail = funnel[DesignStage.designMailSend] ?? 0;
     final cad = funnel[DesignStage.cadApproved] ?? 0;
     final strike = funnel[DesignStage.strikeOff] ?? 0;
     final rotary = funnel[DesignStage.rotaryScreen] ?? 0;
@@ -99,7 +98,6 @@ class _WeekFunnelCard extends StatelessWidget {
             const SizedBox(height: 10),
             _funnelRow('Design Received', received, received,
                 Colors.blueGrey),
-            _funnelRow('Design Mail Send', mail, received, Colors.teal),
             _funnelRow('CAD Approved', cad, received, Colors.blue),
             _funnelRow('Strike Off Finished', strike, received, Colors.orange),
             _funnelRow('Rotary Screen Printed', rotary, received,
