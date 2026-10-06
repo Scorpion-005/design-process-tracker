@@ -1,12 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum DesignStage { received, cadApproved, strikeOff, rotaryScreen }
+enum DesignStage {
+  received,
+  designMailSend,
+  cadApproved,
+  strikeOff,
+  rotaryScreen
+}
 
 extension DesignStageX on DesignStage {
   String get label {
     switch (this) {
       case DesignStage.received:
         return 'Design Received';
+      case DesignStage.designMailSend:
+        return 'Design Mail Send';
       case DesignStage.cadApproved:
         return 'CAD / Design Approved';
       case DesignStage.strikeOff:
@@ -54,6 +62,7 @@ class Design {
     if (rotaryScreenDate != null) return DesignStage.rotaryScreen;
     if (strikeOffDate != null) return DesignStage.strikeOff;
     if (cadApprovedDate != null) return DesignStage.cadApproved;
+    if (designMailSendDate != null) return DesignStage.designMailSend;
     return DesignStage.received;
   }
 
