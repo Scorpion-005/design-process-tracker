@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../models/design.dart';
+import 'macro_packager.dart';
 
 class ExportService {
   static final _fmt = DateFormat('dd-MM-yyyy');
@@ -232,13 +233,24 @@ class ExportService {
     final bytes = excelFile.encode();
     if (bytes == null) return;
 
+    // Macro-enabled (.xlsm) with ThisWorkbook + Module code. If the macro
+    // asset can't be added for any reason, fall back to a plain .xlsx.
+    List<int> outBytes = bytes;
+    String ext = 'xlsx';
+    String? mime;
+    try {
+      outBytes = await MacroPackager.toMacroWorkbook(bytes);
+      ext = 'xlsm';
+      mime = MacroPackager.mimeType;
+    } catch (_) {}
+
     final dir = await getTemporaryDirectory();
     final stamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final file = File('${dir.path}/design_tracker_export_$stamp.xlsx');
-    await file.writeAsBytes(bytes);
+    final file = File('${dir.path}/design_tracker_export_$stamp.$ext');
+    await file.writeAsBytes(outBytes);
 
     await Share.shareXFiles(
-      [XFile(file.path)],
+      [XFile(file.path, mimeType: mime)],
       text: 'Design Tracker - Weekly Report',
       subject: 'Design Tracker Export ($stamp)',
     );
