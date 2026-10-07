@@ -90,6 +90,18 @@ workflows:
               echo "systemProp.org.gradle.internal.repository.initial.backoff=1000"
             } >> android/gradle.properties
           fi
+      - name: Set app launcher icon
+        script: |
+          # Builds every launcher icon from assets/logo.png (macOS sips),
+          # and removes any wrongly-nested icon folders.
+          RES=android/app/src/main/res
+          rm -rf "$RES/mipmap-xhdpi/mipmap-xhdpi" "$RES/mipmap-xhdpi/mipmap-xxhdpi" "$RES/mipmap-xhdpi/mipmap-xxxhdpi"
+          for pair in mdpi:48 hdpi:72 xhdpi:96 xxhdpi:144 xxxhdpi:192; do
+            d="${pair%%:*}"
+            size="${pair##*:}"
+            mkdir -p "$RES/mipmap-$d"
+            sips -s format png -z "$size" "$size" assets/logo.png --out "$RES/mipmap-$d/ic_launcher.png" || true
+          done
       - name: Get dependencies
         script: |
           flutter pub get
