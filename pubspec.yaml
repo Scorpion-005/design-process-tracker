@@ -40,3 +40,4 @@ flutter:
   assets:
     - shorebird.yaml
     - assets/vbaProject.bin
+    - assets/logo.png
