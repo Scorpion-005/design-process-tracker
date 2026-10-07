@@ -5,7 +5,7 @@ workflows:
     environment:
       # Keep "stable" — we still capture the exact resolved version below
       # and hand it to Shorebird, so both stages match.
-      flutter: stable
+      flutter: 3.47.6
       groups:
         - github
       vars:
@@ -111,7 +111,10 @@ workflows:
               SUCCESS=1
               break
             fi
-            echo "Attempt $ATTEMPT failed. Waiting 20s before retrying..."
+            echo "Attempt $ATTEMPT failed."
+            echo "=== Version/plugin hints from the Shorebird log ==="
+            grep -rhiE "lower than|minimum supported|Failed to apply plugin|incompatible|Unsupported" "$HOME/Library/Application Support/shorebird/logs/" 2>/dev/null | sort -u | head -20 || true
+            echo "Waiting 20s before retrying..."
             sleep 20
           done
           if [ "$SUCCESS" != "1" ]; then
